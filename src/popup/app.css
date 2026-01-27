@@ -1,0 +1,26 @@
+/* Global styles for the extension popup.
+ *
+ * Tailwind v4 best practice:
+ * - Keep a single "entry" stylesheet that imports Tailwind
+ * - Import this file once from `src/popup/main.ts`
+ */
+
+@import "tailwindcss";
+
+/* Chrome extension popups do NOT automatically size like normal web pages.
+ * If you don't set a size, Chrome may render a very narrow popup (the "sliver").
+ *
+ * Pick any size you like later — this is a sane default for a small tool UI.
+ */
+html,
+body {
+  width: 380px;
+  height: 520px;
+  margin: 0;
+}
+
+/* A tiny bit of global polish. */
+body {
+  background: #0a0a0a;
+}
+

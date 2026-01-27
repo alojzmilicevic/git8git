@@ -12,3 +12,7 @@ node_modules/
 Thumbs.db
 .vscode/
 
+# Local env (keep secrets out of git)
+.env
+.env.*
+

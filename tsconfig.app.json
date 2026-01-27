@@ -6,7 +6,7 @@
     "moduleResolution": "Bundler",
     "useDefineForClassFields": true,
     "isolatedModules": true,
-    "types": ["chrome"],
+    "types": ["chrome", "node"],
     "strict": true,
     "noEmit": true
   },

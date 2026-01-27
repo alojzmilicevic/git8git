@@ -2,13 +2,15 @@
   "manifest_version": 3,
   "name": "git8git",
   "description": "Minimal MV3 extension scaffold (Svelte + TypeScript + Vite).",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "action": {
     "default_popup": "src/popup/popup.html"
   },
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"
-  }
+  },
+  "permissions": ["identity", "storage", "declarativeContent", "tabs"],
+  "host_permissions": ["https://github.com/*", "https://api.github.com/*", "http://localhost:5678/*"]
 }
 

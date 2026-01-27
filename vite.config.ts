@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { crx } from '@crxjs/vite-plugin'
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import tailwindcss from '@tailwindcss/vite'
 
 /**
  * Chrome extensions need a `manifest.json`. We keep the *source* manifest at
@@ -17,7 +18,8 @@ const manifestPath = fileURLToPath(new URL('./public/manifest.json', import.meta
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
 
 export default defineConfig({
-  plugins: [svelte(), crx({ manifest })],
+  // Order: Tailwind (CSS) → Svelte → CRXJS (extension manifest/output)
+  plugins: [tailwindcss(), svelte(), crx({ manifest })],
   publicDir: false,
   /**
    * In dev, the extension runs on a `chrome-extension://` origin and pulls
