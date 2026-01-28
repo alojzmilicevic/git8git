@@ -21,6 +21,10 @@ export default defineConfig({
   // Order: Tailwind (CSS) → Svelte → CRXJS (extension manifest/output)
   plugins: [tailwindcss(), svelte(), crx({ manifest })],
   publicDir: false,
+  cacheDir: '.vite',
+  optimizeDeps: {
+    force: true, // Force re-bundling dependencies
+  },
   /**
    * In dev, the extension runs on a `chrome-extension://` origin and pulls
    * modules from the Vite dev server. Enable CORS so Chrome can load Vite's

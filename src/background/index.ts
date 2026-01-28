@@ -1,60 +1,8 @@
 import type { BackgroundRequest, BackgroundResponse } from '../shared/messages'
-import {
-  clearDeviceFlowSession,
-  clearStoredToken,
-  getDeviceFlowSession,
-  getStoredToken,
-  pollDeviceFlowOnce,
-  startDeviceFlow
-} from './githubAuth'
-import { listRepos } from './githubApi'
+import { handleApiRequest } from './apiHandler'
+import { isAuthenticated, clearTokenData, getValidAccessToken, storeTokensFromAuth } from './tokenManager'
 
 const POPUP_PATH = 'src/popup/popup.html'
-
-function makeDotIcon(size: number, enabled: boolean): ImageData {
-  // Create a simple “dot” icon so we don’t need to ship extra image files.
-  const canvas = new OffscreenCanvas(size, size)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return new ImageData(size, size)
-
-  ctx.clearRect(0, 0, size, size)
-
-  // Background (subtle rounded square)
-  const r = Math.max(3, Math.floor(size * 0.22))
-  const pad = Math.max(1, Math.floor(size * 0.08))
-  ctx.fillStyle = enabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.12)'
-  ctx.strokeStyle = enabled ? 'rgba(16, 185, 129, 0.65)' : 'rgba(148, 163, 184, 0.55)'
-  ctx.lineWidth = Math.max(1, Math.floor(size * 0.07))
-
-  ctx.beginPath()
-  ctx.roundRect(pad, pad, size - pad * 2, size - pad * 2, r)
-  ctx.fill()
-  ctx.stroke()
-
-  // Dot
-  const dotR = Math.max(3, Math.floor(size * 0.18))
-  ctx.beginPath()
-  ctx.fillStyle = enabled ? 'rgba(16, 185, 129, 0.95)' : 'rgba(148, 163, 184, 0.9)'
-  ctx.arc(size / 2, size / 2, dotR, 0, Math.PI * 2)
-  ctx.fill()
-
-  return ctx.getImageData(0, 0, size, size)
-}
-
-async function setActionVisual(tabId: number, enabled: boolean) {
-  // Icon
-  await chrome.action.setIcon({
-    tabId,
-    imageData: {
-      16: makeDotIcon(16, enabled),
-      32: makeDotIcon(32, enabled)
-    }
-  })
-
-  // Optional: subtle badge to reinforce state
-  await chrome.action.setBadgeText({ tabId, text: enabled ? 'ON' : '' })
-  await chrome.action.setBadgeBackgroundColor({ tabId, color: enabled ? '#10b981' : '#64748b' })
-}
 
 function isN8nWorkflowsUrl(rawUrl: string | undefined): boolean {
   if (!rawUrl) return false
@@ -66,13 +14,8 @@ function isN8nWorkflowsUrl(rawUrl: string | undefined): boolean {
     if (url.hostname !== 'localhost') return false
     if (url.port !== '5678') return false
 
-    // Allow:
-    // - /home/workflows
-    // - /home/workflows/
-    // - /home/workflows?...
     if (url.pathname === '/home/workflows' || url.pathname.startsWith('/home/workflows/')) return true
 
-    // In case n8n uses hash routing in your setup (e.g. http://localhost:5678/#/home/workflows)
     if (url.hash === '#/home/workflows' || url.hash.startsWith('#/home/workflows/')) return true
 
     return false
@@ -91,8 +34,6 @@ async function applyActionStateForTab(tabId: number, tabUrl: string | undefined)
     await chrome.action.disable(tabId)
     await chrome.action.setPopup({ tabId, popup: '' })
   }
-
-  await setActionVisual(tabId, enabled)
 }
 
 async function syncActiveTabActionState() {
@@ -102,7 +43,6 @@ async function syncActiveTabActionState() {
 }
 
 async function setupDeclarativeContentRules() {
-  // This doesn't truly "hide" pinned icons, but it helps keep the action consistent.
   await chrome.declarativeContent.onPageChanged.removeRules(undefined)
 
   await chrome.declarativeContent.onPageChanged.addRules([
@@ -142,12 +82,43 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
 })
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Run when URL becomes known/changes
   if (!changeInfo.url && !tab.url) return
+
+  const url = changeInfo.url ?? tab.url
+
+  if (url?.startsWith('http://localhost:3000/auth/github/callback')) {
+    try {
+      const parsedUrl = new URL(url)
+      
+      // Parse hash params: #accessToken=...&refreshToken=...&expiresIn=... 
+      const hashParams = new URLSearchParams(parsedUrl.hash.substring(1))
+      const accessToken = hashParams.get('accessToken')
+      const refreshToken = hashParams.get('refreshToken')
+      const expiresIn = hashParams.get('expiresIn')
+
+      if (accessToken && refreshToken && expiresIn) {
+        await storeTokensFromAuth(accessToken, refreshToken, parseInt(expiresIn, 10))
+
+        try {
+          await chrome.tabs.remove(tabId)
+        } catch {
+        }
+
+        const n8nTabs = await chrome.tabs.query({ url: 'http://localhost:5678/*' })
+        for (const n8nTab of n8nTabs) {
+          if (n8nTab.id) {
+            chrome.tabs.sendMessage(n8nTab.id, { type: 'auth/complete' }).catch(() => {})
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[git8git] Error processing OAuth callback:', e)
+    }
+  }
+
   try {
-    await applyActionStateForTab(tabId, changeInfo.url ?? tab.url)
+    await applyActionStateForTab(tabId, url)
   } catch {
-    // ignore
   }
 })
 
@@ -156,44 +127,30 @@ chrome.runtime.onMessage.addListener(
     ;(async () => {
       try {
         switch (message.type) {
+          case 'api/request': {
+            const response = await handleApiRequest(message)
+            sendResponse(response as BackgroundResponse)
+            return
+          }
+
           case 'auth/status': {
-            const token = await getStoredToken()
-            sendResponse({ ok: true, type: 'auth/status', authenticated: Boolean(token) })
+            const authenticated = await isAuthenticated()
+            sendResponse({ ok: true, type: 'auth/status', authenticated })
             return
           }
-          case 'auth/device/start': {
-            const data = await startDeviceFlow()
-            console.log('[auth] device/start', { verification_uri: data.verification_uri })
-            sendResponse({ ok: true, type: 'auth/device/start', ...data })
+
+          case 'auth/getToken': {
+            const token = await getValidAccessToken()
+            sendResponse({ ok: true, type: 'auth/getToken', token })
             return
           }
-          case 'auth/device/get': {
-            const session = await getDeviceFlowSession()
-            sendResponse({ ok: true, type: 'auth/device/get', session })
-            return
-          }
-          case 'auth/device/clear': {
-            await clearDeviceFlowSession()
-            sendResponse({ ok: true, type: 'auth/device/clear' })
-            return
-          }
-          case 'auth/device/poll': {
-            const result = await pollDeviceFlowOnce(message.device_code)
-            console.log('[auth] device/poll', result)
-            sendResponse({ ok: true, type: 'auth/device/poll', ...result })
-            return
-          }
+
           case 'auth/logout': {
-            await clearStoredToken()
-            await clearDeviceFlowSession()
+            await clearTokenData()
             sendResponse({ ok: true, type: 'auth/logout', authenticated: false })
             return
           }
-          case 'repos/list': {
-            const repos = await listRepos()
-            sendResponse({ ok: true, type: 'repos/list', repos })
-            return
-          }
+
           default:
             sendResponse({ ok: false, error: 'Unknown message type.' })
         }
@@ -203,8 +160,6 @@ chrome.runtime.onMessage.addListener(
       }
     })()
 
-    // Keep the message channel open for async response.
     return true
   }
 )
-
