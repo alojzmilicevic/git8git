@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import GitHubSection from './GitHubSection.svelte'
   import N8nSection from './N8nSection.svelte'
-  import { appState, disconnectGitHub, saveN8nApiKey, disconnectN8n } from '../store.svelte'
+  import { appState, disconnectGitHub, saveN8nConfig, disconnectN8n } from '../store.svelte'
 
   interface Props {
     onClose?: () => void
@@ -12,18 +12,16 @@
 
   let popupRef: HTMLElement
 
-  const GITHUB_AUTH_URL = 'http://localhost:3000/auth/github'
-
   function handleGitHubConnect() {
-    window.open(GITHUB_AUTH_URL, '_blank')
+    chrome.runtime.sendMessage({ type: 'auth/connect' })
   }
 
   function handleGitHubDisconnect() {
     disconnectGitHub()
   }
 
-  function handleN8nSave(apiKey: string) {
-    saveN8nApiKey(apiKey)
+  function handleN8nSave(apiKey: string, baseUrl: string) {
+    saveN8nConfig(apiKey, baseUrl)
   }
 
   function handleN8nDisconnect() {
@@ -80,6 +78,7 @@
 
     <N8nSection
       connected={appState.n8nConnected}
+      currentUrl={appState.n8nBaseUrl}
       onSave={handleN8nSave}
       onDisconnect={handleN8nDisconnect}
     />

@@ -52,10 +52,10 @@ export interface Branch {
 }
 
 export const githubApi = {
-  listRepos: () => api.get<Repo[]>('/api/repos'),
-  listBranches: (repoFullName: string) => api.get<Branch[]>(`/api/repos/${repoFullName}/branches`),
-  getFileContent: (repoFullName: string, path: string, ref?: string) => 
-    api.get<{ content: string; sha: string }>(`/api/repos/${repoFullName}/contents/${path}${ref ? `?ref=${ref}` : ''}`),
+  listRepos: () => api.get<Repo[]>('/api/github/repos'),
+  listBranches: (repoFullName: string) => api.get<Branch[]>(`/api/github/repos/${repoFullName}/branches`),
+  getFileContent: (repoFullName: string, path: string, ref?: string) =>
+    api.get<{ content: string; sha: string }>(`/api/github/repos/${repoFullName}/contents/${path}${ref ? `?ref=${ref}` : ''}`),
   saveFile: (repoFullName: string, path: string, content: string, message: string, branch?: string, sha?: string) =>
-    api.put<{ changed: boolean; sha: string; path: string }>(`/api/repos/${repoFullName}/contents/${path}`, { content, message, branch, sha }),
+    api.put<{ changed: boolean; sha: string; path: string }>(`/api/github/repos/${repoFullName}/contents/${path}`, { content, message, branch, sha }),
 }

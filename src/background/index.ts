@@ -1,22 +1,43 @@
 import type { BackgroundRequest, BackgroundResponse } from '../shared/messages'
 import { handleApiRequest } from './apiHandler'
 import { isAuthenticated, clearTokenData, getValidAccessToken, storeTokensFromAuth } from './tokenManager'
+import { API_BASE, GITHUB_CLIENT_ID } from '../shared/config'
+import { DEFAULT_N8N_URL } from '../content/store.svelte'
 
 const POPUP_PATH = 'src/popup/popup.html'
 
-function isN8nWorkflowsUrl(rawUrl: string | undefined): boolean {
+async function getStoredN8nBaseUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get('n8nBaseUrl', (result) => {
+      resolve((result.n8nBaseUrl as string) || DEFAULT_N8N_URL)
+    })
+  })
+}
+
+function isN8nWorkflowPath(url: URL): boolean {
+  // Check pathname patterns
+  if (url.pathname === '/home/workflows' || url.pathname.startsWith('/home/workflows/')) return true
+  if (url.pathname.startsWith('/workflow/')) return true
+  
+  // Check hash patterns (for older n8n versions)
+  if (url.hash === '#/home/workflows' || url.hash.startsWith('#/home/workflows/')) return true
+  if (url.hash.startsWith('#/workflow/')) return true
+  
+  return false
+}
+
+async function isN8nWorkflowsUrl(rawUrl: string | undefined): Promise<boolean> {
   if (!rawUrl) return false
 
   try {
     const url = new URL(rawUrl)
+    const storedBaseUrl = await getStoredN8nBaseUrl()
+    const storedUrl = new URL(storedBaseUrl)
 
-    if (url.protocol !== 'http:') return false
-    if (url.hostname !== 'localhost') return false
-    if (url.port !== '5678') return false
-
-    if (url.pathname === '/home/workflows' || url.pathname.startsWith('/home/workflows/')) return true
-
-    if (url.hash === '#/home/workflows' || url.hash.startsWith('#/home/workflows/')) return true
+    // Check if origin matches stored n8n URL
+    if (url.origin === storedUrl.origin) {
+      return isN8nWorkflowPath(url)
+    }
 
     return false
   } catch {
@@ -25,7 +46,7 @@ function isN8nWorkflowsUrl(rawUrl: string | undefined): boolean {
 }
 
 async function applyActionStateForTab(tabId: number, tabUrl: string | undefined) {
-  const enabled = isN8nWorkflowsUrl(tabUrl)
+  const enabled = await isN8nWorkflowsUrl(tabUrl)
 
   if (enabled) {
     await chrome.action.enable(tabId)
@@ -42,34 +63,19 @@ async function syncActiveTabActionState() {
   await applyActionStateForTab(tab.id, tab.url)
 }
 
-async function setupDeclarativeContentRules() {
-  await chrome.declarativeContent.onPageChanged.removeRules(undefined)
-
-  await chrome.declarativeContent.onPageChanged.addRules([
-    {
-      conditions: [
-        new chrome.declarativeContent.PageStateMatcher({
-          pageUrl: {
-            schemes: ['http'],
-            hostEquals: 'localhost',
-            ports: [5678],
-            pathEquals: '/home/workflows'
-          }
-        })
-      ],
-      actions: [new chrome.declarativeContent.ShowAction()]
-    }
-  ])
-}
-
 chrome.runtime.onInstalled.addListener(async () => {
-  await setupDeclarativeContentRules()
   await syncActiveTabActionState()
 })
 
 chrome.runtime.onStartup?.addListener(async () => {
-  await setupDeclarativeContentRules()
   await syncActiveTabActionState()
+})
+
+// Re-check tabs when n8n URL config changes
+chrome.storage.onChanged.addListener(async (changes) => {
+  if (changes.n8nBaseUrl) {
+    await syncActiveTabActionState()
+  }
 })
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
@@ -85,36 +91,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!changeInfo.url && !tab.url) return
 
   const url = changeInfo.url ?? tab.url
-
-  if (url?.startsWith('http://localhost:3000/auth/github/callback')) {
-    try {
-      const parsedUrl = new URL(url)
-      
-      // Parse hash params: #accessToken=...&refreshToken=...&expiresIn=... 
-      const hashParams = new URLSearchParams(parsedUrl.hash.substring(1))
-      const accessToken = hashParams.get('accessToken')
-      const refreshToken = hashParams.get('refreshToken')
-      const expiresIn = hashParams.get('expiresIn')
-
-      if (accessToken && refreshToken && expiresIn) {
-        await storeTokensFromAuth(accessToken, refreshToken, parseInt(expiresIn, 10))
-
-        try {
-          await chrome.tabs.remove(tabId)
-        } catch {
-        }
-
-        const n8nTabs = await chrome.tabs.query({ url: 'http://localhost:5678/*' })
-        for (const n8nTab of n8nTabs) {
-          if (n8nTab.id) {
-            chrome.tabs.sendMessage(n8nTab.id, { type: 'auth/complete' }).catch(() => {})
-          }
-        }
-      }
-    } catch (e) {
-      console.error('[git8git] Error processing OAuth callback:', e)
-    }
-  }
 
   try {
     await applyActionStateForTab(tabId, url)
@@ -148,6 +124,41 @@ chrome.runtime.onMessage.addListener(
           case 'auth/logout': {
             await clearTokenData()
             sendResponse({ ok: true, type: 'auth/logout', authenticated: false })
+            return
+          }
+
+          case 'auth/connect': {
+            const redirectUri = chrome.identity.getRedirectURL()
+            const state = crypto.randomUUID()
+            const authUrl =
+              `https://github.com/login/oauth/authorize` +
+              `?client_id=${GITHUB_CLIENT_ID}` +
+              `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+              `&scope=repo,read:user,user:email` +
+              `&state=${state}`
+            const callbackUrl = await chrome.identity.launchWebAuthFlow({
+              url: authUrl,
+              interactive: true,
+            })
+            if (!callbackUrl) throw new Error('OAuth flow cancelled or failed')
+            const code = new URL(callbackUrl).searchParams.get('code')
+            if (!code) throw new Error('No code in callback URL')
+            const tokenRes = await fetch(`${API_BASE}/api/github/token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code }),
+            })
+            if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status}`)
+            const { accessToken, refreshToken, expiresIn } = await tokenRes.json()
+            await storeTokensFromAuth(accessToken, refreshToken, expiresIn)
+            const n8nBaseUrl = await getStoredN8nBaseUrl()
+            const n8nTabs = await chrome.tabs.query({ url: `${n8nBaseUrl}/*` })
+            for (const n8nTab of n8nTabs) {
+              if (n8nTab.id) {
+                chrome.tabs.sendMessage(n8nTab.id, { type: 'auth/complete' }).catch(() => {})
+              }
+            }
+            sendResponse({ ok: true, type: 'auth/connect', authenticated: true })
             return
           }
 

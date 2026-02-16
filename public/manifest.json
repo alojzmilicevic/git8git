@@ -22,12 +22,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:5678/*"],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["src/content/main.ts"],
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["identity", "storage", "declarativeContent", "tabs"],
-  "host_permissions": ["https://github.com/*", "https://api.github.com/*", "http://localhost:5678/*", "http://localhost:3000/*"]
+  "permissions": ["identity", "storage", "tabs"],
+  "host_permissions": ["https://github.com/*", "https://api.github.com/*", "http://localhost:5100/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"]
 }
 

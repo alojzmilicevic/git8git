@@ -15,5 +15,6 @@ Thumbs.db
 
 # Local env (keep secrets out of git)
 .env
-.env.*
+.env.local
+.env.*.local
 

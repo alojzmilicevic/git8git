@@ -1,4 +1,4 @@
-const N8N_BASE_URL = 'http://localhost:5678'
+import { DEFAULT_N8N_URL } from "../content/store.svelte"
 
 export interface N8nWorkflow {
   id: string
@@ -13,27 +13,40 @@ export interface N8nWorkflow {
   updatedAt: string
 }
 
-async function getApiKey(): Promise<string | null> {
+export interface N8nConfig {
+  apiKey: string | null
+  baseUrl: string
+}
+
+async function getN8nConfig(): Promise<N8nConfig> {
   if (typeof chrome === 'undefined' || !chrome.storage) {
-    return null
+    return { apiKey: null, baseUrl: DEFAULT_N8N_URL }
   }
   
   return new Promise((resolve) => {
-    chrome.storage.local.get('n8nApiKey', (result) => {
-      resolve((result.n8nApiKey as string) || null)
+    chrome.storage.local.get(['n8nApiKey', 'n8nBaseUrl'], (result) => {
+      resolve({
+        apiKey: (result.n8nApiKey as string) || null,
+        baseUrl: (result.n8nBaseUrl as string) || DEFAULT_N8N_URL
+      })
     })
   })
 }
 
+export async function getN8nBaseUrl(): Promise<string> {
+  const config = await getN8nConfig()
+  return config.baseUrl
+}
+
 export async function getWorkflow(workflowId: string): Promise<N8nWorkflow> {
-  const apiKey = await getApiKey()
-  if (!apiKey) {
+  const config = await getN8nConfig()
+  if (!config.apiKey) {
     throw new Error('n8n API key not configured')
   }
 
-  const response = await fetch(`${N8N_BASE_URL}/api/v1/workflows/${workflowId}`, {
+  const response = await fetch(`${config.baseUrl}/api/v1/workflows/${workflowId}`, {
     headers: {
-      'X-N8N-API-KEY': apiKey,
+      'X-N8N-API-KEY': config.apiKey,
       'Accept': 'application/json'
     }
   })
@@ -46,15 +59,15 @@ export async function getWorkflow(workflowId: string): Promise<N8nWorkflow> {
 }
 
 export async function updateWorkflow(workflowId: string, workflow: Partial<N8nWorkflow>): Promise<N8nWorkflow> {
-  const apiKey = await getApiKey()
-  if (!apiKey) {
+  const config = await getN8nConfig()
+  if (!config.apiKey) {
     throw new Error('n8n API key not configured')
   }
 
-  const response = await fetch(`${N8N_BASE_URL}/api/v1/workflows/${workflowId}`, {
+  const response = await fetch(`${config.baseUrl}/api/v1/workflows/${workflowId}`, {
     method: 'PUT',
     headers: {
-      'X-N8N-API-KEY': apiKey,
+      'X-N8N-API-KEY': config.apiKey,
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
@@ -69,7 +82,6 @@ export async function updateWorkflow(workflowId: string, workflow: Partial<N8nWo
 }
 
 export function getWorkflowIdFromUrl(): string | null {
-  // URL format: http://localhost:5678/workflow/abc123
   const match = window.location.pathname.match(/\/workflow\/([^/]+)/)
   return match ? match[1] : null
 }

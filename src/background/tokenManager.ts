@@ -1,14 +1,25 @@
 import type { TokenData } from '../shared/messages'
-
-const API_BASE = 'http://localhost:3000'
+import { API_BASE } from '../shared/config'
 const TOKEN_STORAGE_KEY = 'tokenData'
 const REFRESH_BUFFER_MS = 5 * 60 * 1000 // Refresh 5 minutes before expiry
 
 let cachedTokenData: TokenData | null = null
+let cacheInitialized = false
 let refreshPromise: Promise<TokenData | null> | null = null
 
+// Listen for storage changes to invalidate cache
+if (typeof chrome !== 'undefined' && chrome.storage) {
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes[TOKEN_STORAGE_KEY]) {
+      cachedTokenData = changes[TOKEN_STORAGE_KEY].newValue || null
+      console.log('[tokenManager] Token cache updated from storage change')
+    }
+  })
+}
+
 export async function getTokenData(): Promise<TokenData | null> {
-  if (cachedTokenData) {
+  // Return cache if already initialized
+  if (cacheInitialized) {
     return cachedTokenData
   }
 
@@ -20,6 +31,7 @@ export async function getTokenData(): Promise<TokenData | null> {
   return new Promise((resolve) => {
     chrome.storage.local.get(TOKEN_STORAGE_KEY, (result) => {
       cachedTokenData = (result[TOKEN_STORAGE_KEY] as TokenData) || null
+      cacheInitialized = true
       resolve(cachedTokenData)
     })
   })
@@ -39,6 +51,7 @@ export async function saveTokenData(data: TokenData): Promise<void> {
 
 export async function clearTokenData(): Promise<void> {
   cachedTokenData = null
+  cacheInitialized = true // Mark as initialized with null value
   
   if (typeof chrome === 'undefined' || !chrome.storage) {
     return

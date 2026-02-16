@@ -1,8 +1,7 @@
 
 import type { ApiRequest, ApiResponse } from '../shared/messages'
 import { getValidAccessToken, clearTokenData } from './tokenManager'
-
-const API_BASE = 'http://localhost:3000'
+import { API_BASE } from '../shared/config'
 
 export async function handleApiRequest<T>(request: ApiRequest): Promise<ApiResponse<T>> {
   const { endpoint, method, body } = request

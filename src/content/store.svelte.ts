@@ -3,6 +3,7 @@ import { githubApi, type Repo, type Branch } from '../shared/api'
 interface AppState {
   githubConnected: boolean
   n8nConnected: boolean
+  n8nBaseUrl: string
   selectedRepo: string
   selectedBranch: string
   initialized: boolean
@@ -15,10 +16,13 @@ interface AppState {
   branchesError: string
 }
 
+export const DEFAULT_N8N_URL = 'https://automation.alostuff.com'
+
 // Singleton reactive state
 export const appState: AppState = $state({
   githubConnected: false,
   n8nConnected: false,
+  n8nBaseUrl: DEFAULT_N8N_URL,
   selectedRepo: '',
   selectedBranch: '',
   initialized: false,
@@ -45,9 +49,10 @@ export function initializeStore(): void {
     return
   }
 
-  chrome.storage.local.get(['tokenData', 'n8nApiKey', 'selectedRepo', 'selectedBranch'], (result) => {
+  chrome.storage.local.get(['tokenData', 'n8nApiKey', 'n8nBaseUrl', 'selectedRepo', 'selectedBranch'], (result) => {
     appState.githubConnected = Boolean(result.tokenData)
     appState.n8nConnected = Boolean(result.n8nApiKey)
+    appState.n8nBaseUrl = (result.n8nBaseUrl as string) || DEFAULT_N8N_URL
     appState.selectedRepo = (result.selectedRepo as string) || ''
     appState.selectedBranch = (result.selectedBranch as string) || ''
     appState.initialized = true
@@ -78,6 +83,9 @@ export function initializeStore(): void {
       }
       if (changes.n8nApiKey) {
         appState.n8nConnected = Boolean(changes.n8nApiKey.newValue)
+      }
+      if (changes.n8nBaseUrl) {
+        appState.n8nBaseUrl = (changes.n8nBaseUrl.newValue as string) || DEFAULT_N8N_URL
       }
       if (changes.selectedRepo) {
         appState.selectedRepo = (changes.selectedRepo.newValue as string) || ''
@@ -153,8 +161,16 @@ export async function fetchRepos(force = false): Promise<void> {
       }
     }
   } catch (e) {
-    appState.reposError = e instanceof Error ? e.message : 'Failed to load repositories'
+    const message = e instanceof Error ? e.message : 'Failed to load repositories'
     console.error('[git8git] Failed to fetch repos:', e)
+    
+    // If auth failed, disconnect GitHub
+    if (message.includes('Not authenticated') || message.includes('401') || message.includes('Unauthorized')) {
+      console.log('[git8git] Auth failed, disconnecting GitHub')
+      disconnectGitHub()
+    } else {
+      appState.reposError = message
+    }
   } finally {
     appState.reposLoading = false
   }
@@ -204,12 +220,17 @@ export async function fetchBranches(repoFullName: string): Promise<void> {
   }
 }
 
-export function saveN8nApiKey(apiKey: string): void {
+export function saveN8nConfig(apiKey: string, baseUrl: string): void {
   appState.n8nConnected = true
-  chrome.storage.local.set({ n8nApiKey: apiKey })
+  appState.n8nBaseUrl = baseUrl || DEFAULT_N8N_URL
+  chrome.storage.local.set({ 
+    n8nApiKey: apiKey, 
+    n8nBaseUrl: baseUrl || DEFAULT_N8N_URL 
+  })
 }
 
 export function disconnectN8n(): void {
   appState.n8nConnected = false
-  chrome.storage.local.remove('n8nApiKey')
+  appState.n8nBaseUrl = DEFAULT_N8N_URL
+  chrome.storage.local.remove(['n8nApiKey', 'n8nBaseUrl'])
 }

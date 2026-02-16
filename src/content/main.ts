@@ -1,10 +1,29 @@
 import { mount, unmount } from 'svelte'
 import Main from './Main.svelte'
+import { DEFAULT_N8N_URL } from './store.svelte'
 
 const CONTAINER_ID = 'git8git-root'
 
 let app: ReturnType<typeof mount> | null = null
 let lastUrl = ''
+let isValidN8nInstance = false
+
+async function getStoredN8nBaseUrl(): Promise<string> {
+  if (typeof chrome === 'undefined' || !chrome.storage) {
+    return DEFAULT_N8N_URL
+  }
+  return new Promise((resolve) => {
+    chrome.storage.local.get('n8nBaseUrl', (result) => {
+      resolve((result.n8nBaseUrl as string) || DEFAULT_N8N_URL)
+    })
+  })
+}
+
+async function checkIfValidN8nInstance(): Promise<boolean> {
+  const storedBaseUrl = await getStoredN8nBaseUrl()
+  const storedOrigin = new URL(storedBaseUrl).origin
+  return window.location.origin === storedOrigin
+}
 
 function isWorkflowPage(): boolean {
   return /^\/workflow\/[^/]+/.test(window.location.pathname)
@@ -63,7 +82,7 @@ function waitForContainer() {
 }
 
 function initialize() {
-  if (!isWorkflowPage()) {
+  if (!isValidN8nInstance || !isWorkflowPage()) {
     return
   }
 
@@ -78,9 +97,6 @@ const urlObserver = new MutationObserver(() => {
   }
 })
 
-lastUrl = window.location.href
-urlObserver.observe(document.body, { childList: true, subtree: true })
-
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'auth/complete') {
     unmountApp()
@@ -88,8 +104,22 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 })
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initialize)
-} else {
-  initialize()
+// Main entry point - check if this is a valid n8n instance before doing anything
+async function main() {
+  isValidN8nInstance = await checkIfValidN8nInstance()
+  
+  if (!isValidN8nInstance) {
+    return // Exit early - not the configured n8n instance
+  }
+
+  lastUrl = window.location.href
+  urlObserver.observe(document.body, { childList: true, subtree: true })
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize)
+  } else {
+    initialize()
+  }
 }
+
+main()
