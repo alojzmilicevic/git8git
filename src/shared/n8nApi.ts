@@ -1,4 +1,4 @@
-import { DEFAULT_N8N_URL } from "../content/store.svelte"
+import { DEFAULT_N8N_URL } from "./config"
 
 export interface N8nWorkflow {
   id: string

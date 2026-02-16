@@ -1,10 +1,7 @@
 import type { BackgroundRequest, BackgroundResponse } from '../shared/messages'
 import { handleApiRequest } from './apiHandler'
 import { isAuthenticated, clearTokenData, getValidAccessToken, storeTokensFromAuth } from './tokenManager'
-import { API_BASE, GITHUB_CLIENT_ID } from '../shared/config'
-import { DEFAULT_N8N_URL } from '../content/store.svelte'
-
-const POPUP_PATH = 'src/popup/popup.html'
+import { API_BASE, GITHUB_CLIENT_ID, DEFAULT_N8N_URL } from '../shared/config'
 
 async function getStoredN8nBaseUrl(): Promise<string> {
   return new Promise((resolve) => {
@@ -13,90 +10,6 @@ async function getStoredN8nBaseUrl(): Promise<string> {
     })
   })
 }
-
-function isN8nWorkflowPath(url: URL): boolean {
-  // Check pathname patterns
-  if (url.pathname === '/home/workflows' || url.pathname.startsWith('/home/workflows/')) return true
-  if (url.pathname.startsWith('/workflow/')) return true
-  
-  // Check hash patterns (for older n8n versions)
-  if (url.hash === '#/home/workflows' || url.hash.startsWith('#/home/workflows/')) return true
-  if (url.hash.startsWith('#/workflow/')) return true
-  
-  return false
-}
-
-async function isN8nWorkflowsUrl(rawUrl: string | undefined): Promise<boolean> {
-  if (!rawUrl) return false
-
-  try {
-    const url = new URL(rawUrl)
-    const storedBaseUrl = await getStoredN8nBaseUrl()
-    const storedUrl = new URL(storedBaseUrl)
-
-    // Check if origin matches stored n8n URL
-    if (url.origin === storedUrl.origin) {
-      return isN8nWorkflowPath(url)
-    }
-
-    return false
-  } catch {
-    return false
-  }
-}
-
-async function applyActionStateForTab(tabId: number, tabUrl: string | undefined) {
-  const enabled = await isN8nWorkflowsUrl(tabUrl)
-
-  if (enabled) {
-    await chrome.action.enable(tabId)
-    await chrome.action.setPopup({ tabId, popup: POPUP_PATH })
-  } else {
-    await chrome.action.disable(tabId)
-    await chrome.action.setPopup({ tabId, popup: '' })
-  }
-}
-
-async function syncActiveTabActionState() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.id) return
-  await applyActionStateForTab(tab.id, tab.url)
-}
-
-chrome.runtime.onInstalled.addListener(async () => {
-  await syncActiveTabActionState()
-})
-
-chrome.runtime.onStartup?.addListener(async () => {
-  await syncActiveTabActionState()
-})
-
-// Re-check tabs when n8n URL config changes
-chrome.storage.onChanged.addListener(async (changes) => {
-  if (changes.n8nBaseUrl) {
-    await syncActiveTabActionState()
-  }
-})
-
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  try {
-    const tab = await chrome.tabs.get(tabId)
-    await applyActionStateForTab(tabId, tab.url)
-  } catch {
-    // ignore
-  }
-})
-
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (!changeInfo.url && !tab.url) return
-
-  const url = changeInfo.url ?? tab.url
-
-  try {
-    await applyActionStateForTab(tabId, url)
-  } catch {
-  }
-})
 
 chrome.runtime.onMessage.addListener(
   (message: BackgroundRequest, _sender, sendResponse: (response: BackgroundResponse) => void) => {
@@ -128,7 +41,12 @@ chrome.runtime.onMessage.addListener(
           }
 
           case 'auth/connect': {
-            const redirectUri = chrome.identity.getRedirectURL()
+            if (!GITHUB_CLIENT_ID || String(GITHUB_CLIENT_ID).trim() === '') {
+              throw new Error('Missing GitHub OAuth client id. Set VITE_GITHUB_CLIENT_ID in git8git-react/.env and rebuild the extension.')
+            }
+
+            // Use a stable redirect path so you can register it in GitHub OAuth app settings
+            const redirectUri = chrome.identity.getRedirectURL('github')
             const state = crypto.randomUUID()
             const authUrl =
               `https://github.com/login/oauth/authorize` +
@@ -136,12 +54,25 @@ chrome.runtime.onMessage.addListener(
               `&redirect_uri=${encodeURIComponent(redirectUri)}` +
               `&scope=repo,read:user,user:email` +
               `&state=${state}`
-            const callbackUrl = await chrome.identity.launchWebAuthFlow({
-              url: authUrl,
-              interactive: true,
-            })
+            let callbackUrl: string | undefined
+            try {
+              callbackUrl = await chrome.identity.launchWebAuthFlow({
+                url: authUrl,
+                interactive: true,
+              })
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e)
+              throw new Error(
+                `Authorization page could not be loaded. ` +
+                  `Check that GitHub is reachable and that your OAuth app callback URL matches this redirect URI: ${redirectUri}. ` +
+                  `Original error: ${msg}`
+              )
+            }
             if (!callbackUrl) throw new Error('OAuth flow cancelled or failed')
-            const code = new URL(callbackUrl).searchParams.get('code')
+            const callback = new URL(callbackUrl)
+            const code = callback.searchParams.get('code')
+            const oauthError = callback.searchParams.get('error') || callback.searchParams.get('error_description')
+            if (oauthError) throw new Error(`OAuth error: ${oauthError}`)
             if (!code) throw new Error('No code in callback URL')
             const tokenRes = await fetch(`${API_BASE}/api/github/token`, {
               method: 'POST',

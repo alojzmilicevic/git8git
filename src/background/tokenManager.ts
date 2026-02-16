@@ -11,7 +11,7 @@ let refreshPromise: Promise<TokenData | null> | null = null
 if (typeof chrome !== 'undefined' && chrome.storage) {
   chrome.storage.onChanged.addListener((changes) => {
     if (changes[TOKEN_STORAGE_KEY]) {
-      cachedTokenData = changes[TOKEN_STORAGE_KEY].newValue || null
+      cachedTokenData = (changes[TOKEN_STORAGE_KEY].newValue as TokenData) || null
       console.log('[tokenManager] Token cache updated from storage change')
     }
   })

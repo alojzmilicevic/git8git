@@ -1,10 +1,11 @@
-import { mount, unmount } from 'svelte'
-import Main from './Main.svelte'
-import { DEFAULT_N8N_URL } from './store.svelte'
+import { createRoot, type Root } from 'react-dom/client'
+import { createElement } from 'react'
+import { App } from './App'
+import { DEFAULT_N8N_URL } from '../shared/config'
 
 const CONTAINER_ID = 'git8git-root'
 
-let app: ReturnType<typeof mount> | null = null
+let root: Root | null = null
 let lastUrl = ''
 let isValidN8nInstance = false
 
@@ -57,15 +58,16 @@ function mountApp() {
   target.id = CONTAINER_ID
   actionsContainer.insertAdjacentElement('beforeend', target)
 
-  app = mount(Main, { target })
+  root = createRoot(target)
+  root.render(createElement(App))
   return true
 }
 
 function unmountApp() {
   const container = document.getElementById(CONTAINER_ID)
-  if (container && app) {
-    unmount(app)
-    app = null
+  if (container && root) {
+    root.unmount()
+    root = null
     container.remove()
   }
 }
@@ -97,19 +99,12 @@ const urlObserver = new MutationObserver(() => {
   }
 })
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === 'auth/complete') {
-    unmountApp()
-    setTimeout(initialize, 100)
-  }
-})
-
-// Main entry point - check if this is a valid n8n instance before doing anything
+// Main entry point
 async function main() {
   isValidN8nInstance = await checkIfValidN8nInstance()
-  
+
   if (!isValidN8nInstance) {
-    return // Exit early - not the configured n8n instance
+    return
   }
 
   lastUrl = window.location.href

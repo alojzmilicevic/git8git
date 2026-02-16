@@ -1,7 +1,8 @@
 {
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7skr9iz7SBf2YnXkh4vQGmF/XYxCZ8COXSodWQ93DBDl7wQu322ChA2QsyAto8eMBBginWfVoRh/OEp6GQAGPJleF99yvhhAEt6Zdv07fdb3gje7IYdEw5wRTHrjpa8yyfS3seX3ESHUOpe0/oGwcOSQYcBrkj71M56f9Awa0hTFOmrNxHH1KZMJBPi2wlp0svxNVzseu8FD0S+8/rZWUQ3NANXugQQJnSO+j2U55YPNqG8CmmqeHFbSe5gayLXaooZ3NNpyrYlk3DinUaltbqv0L1nr2llJR6FVBG9LyG903zfLWfy8c61zKUC6TWxDXUgIv53NGP/o9Tz99Nj27wIDAQAB",
   "manifest_version": 3,
   "name": "git8git",
-  "description": "Minimal MV3 extension scaffold (Svelte + TypeScript + Vite).",
+  "description": "Git version control for n8n workflows (React + TypeScript + Vite).",
   "version": "0.0.1",
   "icons": {
     "16": "src/assets/icon.svg",
@@ -10,7 +11,6 @@
     "128": "src/assets/icon.svg"
   },
   "action": {
-    "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "src/assets/icon.svg",
       "32": "src/assets/icon.svg"
