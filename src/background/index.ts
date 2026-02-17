@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener(
 
           case 'auth/connect': {
             if (!GITHUB_CLIENT_ID || String(GITHUB_CLIENT_ID).trim() === '') {
-              throw new Error('Missing GitHub OAuth client id. Set VITE_GITHUB_CLIENT_ID in git8git-react/.env and rebuild the extension.')
+              throw new Error('Missing GitHub OAuth client id. Set VITE_GITHUB_CLIENT_ID in .env and rebuild the extension.')
             }
 
             // Use a stable redirect path so you can register it in GitHub OAuth app settings
