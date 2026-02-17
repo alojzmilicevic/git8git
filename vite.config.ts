@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 import { crx } from '@crxjs/vite-plugin'
 import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 /**
@@ -18,8 +18,8 @@ const manifestPath = fileURLToPath(new URL('./public/manifest.json', import.meta
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
 
 export default defineConfig({
-  // Order: Tailwind (CSS) → Svelte → CRXJS (extension manifest/output)
-  plugins: [tailwindcss(), svelte(), crx({ manifest })],
+  // Order: Tailwind (CSS) → React → CRXJS (extension manifest/output)
+  plugins: [tailwindcss(), react(), crx({ manifest })],
   publicDir: false,
   cacheDir: '.vite',
   optimizeDeps: {

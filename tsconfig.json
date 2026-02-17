@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
+    "jsx": "react-jsx",
     "types": ["chrome"],
   },
   "exclude": ["node_modules", "dist"]

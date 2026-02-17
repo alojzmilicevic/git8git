@@ -1,10 +1,13 @@
-import { mount, unmount } from 'svelte'
-import Main from './Main.svelte'
-import { DEFAULT_N8N_URL } from './store.svelte'
+import { createRoot, type Root } from 'react-dom/client'
+import { createElement } from 'react'
+import { App } from './App'
+import { DEFAULT_N8N_URL } from '../shared/config'
+import { destroyOverlay } from './shadowPorts'
+import cssText from './styles.css?inline'
 
 const CONTAINER_ID = 'git8git-root'
 
-let app: ReturnType<typeof mount> | null = null
+let root: Root | null = null
 let lastUrl = ''
 let isValidN8nInstance = false
 
@@ -49,25 +52,39 @@ function mountApp() {
   if (document.getElementById(CONTAINER_ID)) return true
 
   const actionsContainer = findActionsContainer()
-  if (!actionsContainer) {
-    return false
-  }
+  if (!actionsContainer) return false
 
-  const target = document.createElement('div')
-  target.id = CONTAINER_ID
-  actionsContainer.insertAdjacentElement('beforeend', target)
+  // 1. Create host element
+  const host = document.createElement('div')
+  host.id = CONTAINER_ID
+  actionsContainer.insertAdjacentElement('beforeend', host)
 
-  app = mount(Main, { target })
+  // 2. Attach shadow root
+  const shadow = host.attachShadow({ mode: 'open' })
+
+  // 3. Inject Tailwind CSS into shadow root
+  const style = document.createElement('style')
+  style.textContent = cssText
+  shadow.appendChild(style)
+
+  // 4. Create render target inside shadow root
+  const renderTarget = document.createElement('div')
+  shadow.appendChild(renderTarget)
+
+  // 5. Mount React
+  root = createRoot(renderTarget)
+  root.render(createElement(App))
   return true
 }
 
 function unmountApp() {
   const container = document.getElementById(CONTAINER_ID)
-  if (container && app) {
-    unmount(app)
-    app = null
+  if (container && root) {
+    root.unmount()
+    root = null
     container.remove()
   }
+  destroyOverlay()
 }
 
 function waitForContainer() {
@@ -104,12 +121,12 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 })
 
-// Main entry point - check if this is a valid n8n instance before doing anything
+// Main entry point
 async function main() {
   isValidN8nInstance = await checkIfValidN8nInstance()
-  
+
   if (!isValidN8nInstance) {
-    return // Exit early - not the configured n8n instance
+    return
   }
 
   lastUrl = window.location.href
