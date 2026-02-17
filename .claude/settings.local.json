@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo:*)",
+      "Bash(npm run build:*)",
+      "Bash(python3:*)",
+      "Bash(openssl genpkey:*)",
+      "Bash(openssl rsa:*)",
+      "Bash(openssl base64:*)",
+      "Bash(npx:*)",
+      "Bash(HOME_DIR=\"$HOME\")",
+      "Bash(\"$HOME_DIR/dev/automation/git8git-react/node_modules/.bin/tsc\" --noEmit --project \"$HOME_DIR/dev/automation/git8git-react/tsconfig.json\")",
+      "Bash(PROJ=\"$HOME/dev/automation/git8git-react\":*)",
+      "Bash(node:*)"
+    ]
+  }
+}
