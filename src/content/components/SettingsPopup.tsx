@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { GitHubSection } from './GitHubSection'
 import { N8nSection } from './N8nSection'
 import { useAppStore } from '../store'
 import { getOverlayRoot } from '../shadowPorts'
+import { useClickOutside } from '../useClickOutside'
 
 interface Props {
   onClose?: () => void
@@ -19,25 +20,13 @@ export function SettingsPopup({ onClose }: Props) {
   const saveN8nConfig = useAppStore((s) => s.saveN8nConfig)
   const disconnectN8n = useAppStore((s) => s.disconnectN8n)
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (authInProgress.current) return
-      const target = event.target as HTMLElement
-      if (target.closest('[data-settings-button]')) return
-      if (popupRef.current && !popupRef.current.contains(target)) {
-        onClose?.()
-      }
-    }
-
-    const timer = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside, true)
-    }, 0)
-
-    return () => {
-      clearTimeout(timer)
-      document.removeEventListener('click', handleClickOutside, true)
-    }
+  const handleClickOutside = useCallback(() => {
+    if (!authInProgress.current) onClose?.()
   }, [onClose])
+
+  useClickOutside(popupRef, handleClickOutside, {
+    ignore: '[data-settings-button]',
+  })
 
   function handleGitHubConnect() {
     authInProgress.current = true

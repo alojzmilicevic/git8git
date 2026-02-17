@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAppStore } from './store'
 import { WorkflowButtons } from './WorkflowButtons'
 import { SettingsButton } from './components/SettingsButton'
@@ -11,6 +11,7 @@ export function App() {
   const selectedRepo = useAppStore((s) => s.selectedRepo)
   const selectedBranch = useAppStore((s) => s.selectedBranch)
   const initializeStore = useAppStore((s) => s.initializeStore)
+  const closeSettings = useCallback(() => setShowSettings(false), [])
 
   useEffect(() => {
     initializeStore()
@@ -26,7 +27,7 @@ export function App() {
 
       <SettingsButton onClick={() => setShowSettings((v) => !v)} />
 
-      {showSettings && <SettingsPopup onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPopup onClose={closeSettings} />}
     </div>
   )
 }

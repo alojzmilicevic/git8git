@@ -114,13 +114,6 @@ const urlObserver = new MutationObserver(() => {
   }
 })
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === 'auth/complete') {
-    unmountApp()
-    setTimeout(initialize, 100)
-  }
-})
-
 // Main entry point
 async function main() {
   isValidN8nInstance = await checkIfValidN8nInstance()
