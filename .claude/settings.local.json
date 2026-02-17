@@ -15,7 +15,9 @@
       "Bash(PROJ=\"$HOME/dev/automation/git8git-react\":*)",
       "Bash(node:*)",
       "Bash(grep:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(yarn build)",
+      "Bash(git stash:*)"
     ]
   }
 }

@@ -32,49 +32,68 @@ function isWorkflowPage(): boolean {
   return /^\/workflow\/[^/]+/.test(window.location.pathname)
 }
 
+const CONTAINER_SELECTOR = 'div[class*="_container_"]'
+
 function findActionsContainer(): HTMLElement | null {
   const publishButton = document.querySelector('[data-test-id="workflow-open-publish-modal-button"]')
   if (publishButton) {
-    const container = publishButton.closest('div[class*="_container_"]')
+    const container = publishButton.closest(CONTAINER_SELECTOR)
     if (container) return container as HTMLElement
   }
 
   const actionsSpan = document.querySelector('span.actions')
   if (actionsSpan) {
-    const innerContainer = actionsSpan.querySelector('div[class*="_container_"]')
-    if (innerContainer) return innerContainer as HTMLElement
+    const container = actionsSpan.querySelector(CONTAINER_SELECTOR)
+    if (container) return container as HTMLElement
   }
 
   return null
 }
 
-function mountApp() {
+function createHost(id: string): HTMLDivElement {
+  const host = document.createElement('div')
+  host.id = id
+  return host
+}
+
+function attachShadowWithStyles(host: HTMLDivElement): HTMLDivElement {
+  const shadow = host.attachShadow({ mode: 'open' })
+
+  const style = document.createElement('style')
+  style.textContent = cssText
+  shadow.appendChild(style)
+
+  const renderTarget = document.createElement('div')
+  shadow.appendChild(renderTarget)
+  return renderTarget
+}
+
+function mount(container: HTMLElement, fab: boolean) {
+  const host = createHost(CONTAINER_ID)
+
+  if (fab) {
+    Object.assign(host.style, { position: 'fixed', bottom: '24px', right: '24px', zIndex: '2147483647' })
+  }
+
+  container.appendChild(host)
+  const renderTarget = attachShadowWithStyles(host)
+  root = createRoot(renderTarget)
+  root.render(createElement(App, { fab }))
+}
+
+function tryMountInline(): boolean {
   if (document.getElementById(CONTAINER_ID)) return true
 
   const actionsContainer = findActionsContainer()
   if (!actionsContainer) return false
 
-  // 1. Create host element
-  const host = document.createElement('div')
-  host.id = CONTAINER_ID
-  actionsContainer.insertAdjacentElement('beforeend', host)
-
-  // 2. Attach shadow root
-  const shadow = host.attachShadow({ mode: 'open' })
-
-  // 3. Inject Tailwind CSS into shadow root
-  const style = document.createElement('style')
-  style.textContent = cssText
-  shadow.appendChild(style)
-
-  // 4. Create render target inside shadow root
-  const renderTarget = document.createElement('div')
-  shadow.appendChild(renderTarget)
-
-  // 5. Mount React
-  root = createRoot(renderTarget)
-  root.render(createElement(App))
+  mount(actionsContainer, false)
   return true
+}
+
+function mountFab() {
+  if (document.getElementById(CONTAINER_ID)) return
+  mount(document.body, true)
 }
 
 function unmountApp() {
@@ -91,11 +110,17 @@ function waitForContainer() {
   if (!isWorkflowPage()) return
 
   const observer = new MutationObserver((_mutations, obs) => {
-    if (mountApp()) obs.disconnect()
+    if (tryMountInline()) obs.disconnect()
   })
 
   observer.observe(document.body, { childList: true, subtree: true })
-  setTimeout(() => observer.disconnect(), 30000)
+
+  // If inline container never appears, fall back to FAB
+  setTimeout(() => {
+    observer.disconnect()
+    console.log('Fallback to FAB')
+    mountFab()
+  }, 2000)
 }
 
 function initialize() {
@@ -103,7 +128,7 @@ function initialize() {
     return
   }
 
-  if (!mountApp()) waitForContainer()
+  if (!tryMountInline()) waitForContainer()
 }
 
 const urlObserver = new MutationObserver(() => {

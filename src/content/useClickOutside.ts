@@ -21,11 +21,13 @@ export function useClickOutside(
     if (!enabled) return
 
     function handler(event: MouseEvent) {
-      if (ignore) {
-        const target = event.target as HTMLElement
-        if (target.closest(ignore)) return
-      }
       const path = event.composedPath()
+      if (ignore) {
+        const matched = path.some(
+          (el) => el instanceof HTMLElement && el.matches(ignore),
+        )
+        if (matched) return
+      }
       if (ref.current && !path.includes(ref.current)) {
         callbackRef.current()
       }
