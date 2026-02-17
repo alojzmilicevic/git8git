@@ -14,7 +14,9 @@
       "Bash(\"$HOME_DIR/dev/automation/git8git-react/node_modules/.bin/tsc\" --noEmit --project \"$HOME_DIR/dev/automation/git8git-react/tsconfig.json\")",
       "Bash(PROJ=\"$HOME/dev/automation/git8git-react\":*)",
       "Bash(node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(yarn build)",
+      "Bash(git stash:*)"
     ]
   }
 }

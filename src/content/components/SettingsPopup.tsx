@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { GitHubSection } from './GitHubSection'
 import { N8nSection } from './N8nSection'
@@ -8,9 +8,12 @@ import { useClickOutside } from '../useClickOutside'
 
 interface Props {
   onClose?: () => void
+  anchor?: 'top' | 'bottom'
+  portal?: boolean
+  children?: ReactNode
 }
 
-export function SettingsPopup({ onClose }: Props) {
+export function SettingsPopup({ onClose, anchor = 'top', portal = true, children }: Props) {
   const popupRef = useRef<HTMLDivElement>(null)
   const authInProgress = useRef(false)
   const githubConnected = useAppStore((s) => s.githubConnected)
@@ -25,7 +28,7 @@ export function SettingsPopup({ onClose }: Props) {
   }, [onClose])
 
   useClickOutside(popupRef, handleClickOutside, {
-    ignore: '[data-settings-button]',
+    ignore: '[data-settings-button],[data-fab-button]',
   })
 
   function handleGitHubConnect() {
@@ -35,19 +38,25 @@ export function SettingsPopup({ onClose }: Props) {
     })
   }
 
-  return createPortal(
+  const content = (
     <div
       ref={popupRef}
-      className="fixed top-[50px] right-5 w-[280px] p-4 rounded-xl border border-neutral-300 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.3)] z-[2147483647]"
+      className={`fixed ${anchor === 'bottom' ? 'bottom-[80px]' : 'top-[50px]'} right-5 w-[280px] p-4 rounded-xl border border-neutral-300 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.3)] z-[2147483647]`}
     >
       <div className="flex flex-col gap-4">
+        {children && (
+          <>
+            {children}
+            <div className="h-px bg-neutral-200" />
+          </>
+        )}
+
         <GitHubSection
           connected={githubConnected}
           onConnect={handleGitHubConnect}
           onDisconnect={disconnectGitHub}
         />
 
-        {/* Divider */}
         <div className="h-px bg-neutral-200" />
 
         <N8nSection
@@ -57,7 +66,8 @@ export function SettingsPopup({ onClose }: Props) {
           onDisconnect={disconnectN8n}
         />
       </div>
-    </div>,
-    getOverlayRoot(),
+    </div>
   )
+
+  return portal ? createPortal(content, getOverlayRoot()) : content
 }

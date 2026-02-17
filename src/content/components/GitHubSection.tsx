@@ -128,7 +128,7 @@ export function GitHubSection({ connected = false, onConnect, onDisconnect }: Pr
           type="button"
           className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150 hover:bg-neutral-200"
           onClick={(e) => {
-            e.stopPropagation()
+            console.log('clicked', onConnect)
             onConnect?.()
           }}
         >
