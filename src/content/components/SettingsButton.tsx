@@ -1,20 +1,17 @@
+import { forwardRef } from 'react'
+
 interface Props {
   onClick?: () => void
 }
 
-export function SettingsButton({ onClick }: Props) {
-  function handleClick(event: React.MouseEvent) {
-    event.stopPropagation()
-    onClick?.()
-  }
-
+export const SettingsButton = forwardRef<HTMLButtonElement, Props>(function SettingsButton({ onClick }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
       title="Settings"
-      data-settings-button
       className="inline-flex items-center justify-center w-8 h-8 rounded-md cursor-pointer transition-all duration-150 border border-neutral-500/40 bg-neutral-500/15 text-neutral-300 hover:bg-neutral-500/25 hover:border-neutral-500/60"
-      onClick={handleClick}
+      onClick={onClick}
     >
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -22,4 +19,4 @@ export function SettingsButton({ onClick }: Props) {
       </svg>
     </button>
   )
-}
+})

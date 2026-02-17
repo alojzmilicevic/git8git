@@ -14,7 +14,18 @@
       "Bash(\"$HOME_DIR/dev/automation/git8git-react/node_modules/.bin/tsc\" --noEmit --project \"$HOME_DIR/dev/automation/git8git-react/tsconfig.json\")",
       "Bash(PROJ=\"$HOME/dev/automation/git8git-react\":*)",
       "Bash(node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(git config:*)",
+      "Bash(where:*)",
+      "Bash(git --version:*)",
+      "Bash(git -C \"C:/Users/Alojz Milicevic/dev/automation/git8git-delete-workflow\" log --oneline main..HEAD)",
+      "Bash(git -C \"C:/Users/Alojz Milicevic/dev/automation/git8git-delete-workflow\" log --oneline -10)",
+      "Bash(git -C \"C:/Users/Alojz Milicevic/dev/automation/git8git-delete-workflow\" log --oneline main)",
+      "Bash(git -C \"C:/Users/Alojz Milicevic/dev/automation/git8git-delete-workflow\" branch -a)",
+      "Bash(git -C \"C:/Users/Alojz Milicevic/dev/automation/git8git-delete-workflow\" add --all -- ':!package-lock.json')",
+      "Bash(git -C \"C:/Users/Alojz Milicevic/dev/automation/git8git-delete-workflow\" status)",
+      "Bash(git add:*)"
     ]
   }
 }

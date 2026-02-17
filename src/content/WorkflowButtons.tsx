@@ -1,20 +1,8 @@
 import { useState, useMemo } from 'react'
-import { getWorkflow, getWorkflowIdFromUrl, sanitizeFilename, type N8nWorkflow } from '../shared/n8nApi'
+import { getWorkflow, getWorkflowIdFromUrl, type N8nWorkflow } from '../shared/n8nApi'
 import { githubApi } from '../shared/api'
 import { PushModal } from './components/PushModal'
-
-interface WorkflowIndex {
-  [workflowId: string]: string
-}
-
-async function getIndex(repo: string, branch: string): Promise<{ index: WorkflowIndex; sha: string | null }> {
-  try {
-    const result = await githubApi.getFileContent(repo, 'workflows/index.json', branch)
-    return { index: JSON.parse(result.content), sha: result.sha }
-  } catch {
-    return { index: {}, sha: null }
-  }
-}
+import { DeleteModal } from './components/DeleteModal'
 
 interface Props {
   repo: string
@@ -24,8 +12,10 @@ interface Props {
 export function WorkflowButtons({ repo, branch }: Props) {
   const [pushing, setPushing] = useState(false)
   const [pulling, setPulling] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [status, setStatus] = useState('')
   const [showPushModal, setShowPushModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [pendingWorkflow, setPendingWorkflow] = useState<N8nWorkflow | null>(null)
 
   const isConfigured = useMemo(() => Boolean(repo && branch), [repo, branch])
@@ -70,67 +60,17 @@ export function WorkflowButtons({ repo, branch }: Props) {
     setPendingWorkflow(null)
 
     try {
-      const { index, sha: indexSha } = await getIndex(repo, branch)
+      const { createdAt, updatedAt, ...exportData } = workflow
 
-      let filename = index[workflow.id]
-      if (!filename) {
-        filename = `${sanitizeFilename(workflow.name)}.json`
-        const existingFilenames = new Set(Object.values(index))
-        let counter = 1
-        let uniqueFilename = filename
-        while (existingFilenames.has(uniqueFilename)) {
-          uniqueFilename = `${sanitizeFilename(workflow.name)}-${counter}.json`
-          counter++
-        }
-        filename = uniqueFilename
-      }
-
-      const exportData = {
-        id: workflow.id,
-        name: workflow.name,
-        active: workflow.active,
-        nodes: workflow.nodes,
-        connections: workflow.connections,
-        settings: workflow.settings,
-        staticData: workflow.staticData,
-        tags: workflow.tags,
-      }
-
-      let fileSha: string | undefined
-      try {
-        const existing = await githubApi.getFileContent(repo, `workflows/${filename}`, branch)
-        fileSha = existing.sha
-      } catch {
-        // File doesn't exist yet
-      }
-
-      console.log('[git8git] Saving workflow file:', { repo, path: `workflows/${filename}`, branch, fileSha })
-      const workflowResult = await githubApi.saveFile(
-        repo,
-        `workflows/${filename}`,
-        JSON.stringify(exportData, null, 2),
-        commitMessage,
+      const result = await githubApi.pushWorkflow(repo, {
         branch,
-        fileSha
-      )
-      console.log('[git8git] Workflow saved:', workflowResult)
+        message: commitMessage,
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        workflowJson: JSON.stringify(exportData, null, 2),
+      })
 
-      const needsIndexUpdate = !index[workflow.id] || index[workflow.id] !== filename
-      index[workflow.id] = filename
-
-      if (needsIndexUpdate) {
-        console.log('[git8git] Saving index:', { index, indexSha })
-        await githubApi.saveFile(
-          repo,
-          'workflows/index.json',
-          JSON.stringify(index, null, 2),
-          'Update workflow index',
-          branch,
-          indexSha || undefined
-        )
-      }
-
-      showStatusMsg(workflowResult.changed ? 'Pushed!' : 'No changes to push', 2000)
+      showStatusMsg(result.changed ? 'Pushed!' : 'No changes to push', 2000)
     } catch (error) {
       console.error('[git8git] Push error:', error)
       showStatusMsg(`Error: ${error instanceof Error ? error.message : 'Push failed'}`, 5000)
@@ -151,16 +91,14 @@ export function WorkflowButtons({ repo, branch }: Props) {
     setStatus('Pulling...')
 
     try {
-      const { index } = await getIndex(repo, branch)
-      const filename = index[workflowId]
+      const result = await githubApi.pullWorkflow(repo, workflowId, branch)
 
-      if (!filename) {
+      if (!result.found) {
         showStatusMsg('Workflow not in repo')
         setPulling(false)
         return
       }
 
-      const result = await githubApi.getFileContent(repo, `workflows/${filename}`, branch)
       const workflowData = JSON.parse(result.content) as N8nWorkflow
 
       const { updateWorkflow } = await import('../shared/n8nApi')
@@ -185,7 +123,55 @@ export function WorkflowButtons({ repo, branch }: Props) {
     }
   }
 
-  const busy = pushing || pulling
+  async function handleDeleteClick() {
+    if (!isConfigured) return
+    const workflowId = getWorkflowIdFromUrl()
+    if (!workflowId) {
+      showStatusMsg('Not on a workflow page')
+      return
+    }
+    setStatus('Loading...')
+    try {
+      const workflow = await getWorkflow(workflowId)
+      setPendingWorkflow(workflow)
+      setShowDeleteModal(true)
+      setStatus('')
+    } catch (error) {
+      console.error('[git8git] Error loading workflow:', error)
+      showStatusMsg(`Error: ${error instanceof Error ? error.message : 'Failed to load'}`)
+    }
+  }
+
+  function handleDeleteCancel() {
+    setShowDeleteModal(false)
+    setPendingWorkflow(null)
+  }
+
+  async function handleDeleteConfirm() {
+    if (!pendingWorkflow) return
+    setShowDeleteModal(false)
+    setDeleting(true)
+    setStatus('Deleting...')
+
+    const workflow = pendingWorkflow
+    setPendingWorkflow(null)
+
+    try {
+      await githubApi.deleteWorkflow(repo, workflow.id, {
+        branch,
+        workflowName: workflow.name,
+      })
+
+      showStatusMsg('Deleted!', 2000)
+    } catch (error) {
+      console.error('[git8git] Delete error:', error)
+      showStatusMsg(`Error: ${error instanceof Error ? error.message : 'Delete failed'}`, 5000)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const busy = pushing || pulling || deleting
 
   return (
     <>
@@ -239,6 +225,21 @@ export function WorkflowButtons({ repo, branch }: Props) {
           <span>{pulling ? 'Pulling' : 'Pull'}</span>
         </button>
 
+        <button
+          type="button"
+          title={isConfigured ? 'Delete workflow from GitHub' : 'Select a repo and branch first'}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 border ${
+            isConfigured
+              ? 'cursor-pointer border-red-500/40 bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:border-red-500/60 active:scale-[0.98]'
+              : 'cursor-not-allowed border-neutral-600/40 bg-neutral-600/15 text-neutral-500'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          onClick={handleDeleteClick}
+          disabled={!isConfigured || busy}
+        >
+          <span>{deleting ? '...' : '\u{1F5D1}'}</span>
+          <span>{deleting ? 'Deleting' : 'Delete'}</span>
+        </button>
+
         {status && <span className="text-xs text-neutral-400 ml-1">{status}</span>}
       </div>
 
@@ -249,6 +250,16 @@ export function WorkflowButtons({ repo, branch }: Props) {
           branch={branch}
           onConfirm={handlePushConfirm}
           onCancel={handlePushCancel}
+        />
+      )}
+
+      {showDeleteModal && pendingWorkflow && (
+        <DeleteModal
+          workflowName={pendingWorkflow.name}
+          repo={repo}
+          branch={branch}
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
         />
       )}
     </>

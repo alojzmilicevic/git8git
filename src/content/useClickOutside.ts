@@ -10,9 +10,9 @@ import { useEffect, useRef, type RefObject } from 'react'
  * tear down and re-add the listener.
  */
 export function useClickOutside(
-  ref: RefObject<HTMLElement | null>,
+  refs: RefObject<HTMLElement | null> | RefObject<HTMLElement | null>[],
   onClickOutside: () => void,
-  { ignore, enabled = true }: { ignore?: string; enabled?: boolean } = {},
+  { enabled = true }: { enabled?: boolean } = {},
 ) {
   const callbackRef = useRef(onClickOutside)
   callbackRef.current = onClickOutside
@@ -21,12 +21,10 @@ export function useClickOutside(
     if (!enabled) return
 
     function handler(event: MouseEvent) {
-      if (ignore) {
-        const target = event.target as HTMLElement
-        if (target.closest(ignore)) return
-      }
       const path = event.composedPath()
-      if (ref.current && !path.includes(ref.current)) {
+      const refsArray = Array.isArray(refs) ? refs : [refs]
+      const hitAny = refsArray.some((r) => r.current && path.includes(r.current))
+      if (!hitAny) {
         callbackRef.current()
       }
     }
@@ -39,5 +37,5 @@ export function useClickOutside(
       clearTimeout(timer)
       document.removeEventListener('click', handler, true)
     }
-  }, [ref, ignore, enabled])
+  }, [refs, enabled])
 }

@@ -2,7 +2,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { createElement } from 'react'
 import { App } from './App'
 import { DEFAULT_N8N_URL } from '../shared/config'
-import { destroyOverlay } from './shadowPorts'
+import { initOverlayRoot, destroyOverlay } from './shadowPorts'
 import cssText from './styles.css?inline'
 
 const CONTAINER_ID = 'git8git-root'
@@ -67,9 +67,13 @@ function mountApp() {
   style.textContent = cssText
   shadow.appendChild(style)
 
-  // 4. Create render target inside shadow root
+  // 4. Create render targets inside shadow root
   const renderTarget = document.createElement('div')
   shadow.appendChild(renderTarget)
+
+  const overlayTarget = document.createElement('div')
+  shadow.appendChild(overlayTarget)
+  initOverlayRoot(overlayTarget)
 
   // 5. Mount React
   root = createRoot(renderTarget)

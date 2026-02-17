@@ -1,38 +1,26 @@
-import cssText from './styles.css?inline'
-
-let overlayHost: HTMLDivElement | null = null
-let overlayShadow: ShadowRoot | null = null
 let overlayContainer: HTMLDivElement | null = null
 
 /**
- * Returns (creating if needed) a shadow-isolated container on document.body
- * for fixed-position elements like modals and popups.
+ * Called once during mount to register the overlay div that lives inside
+ * the main shadow root. Portals (modals, popups) render into this div,
+ * keeping everything in a single shadow root so events, composedPath(),
+ * contains(), etc. all work without special cross-shadow handling.
+ */
+export function initOverlayRoot(el: HTMLDivElement): void {
+  overlayContainer = el
+}
+
+/**
+ * Returns the overlay container for use with createPortal.
  */
 export function getOverlayRoot(): HTMLDivElement {
-  if (overlayContainer) return overlayContainer
-
-  overlayHost = document.createElement('div')
-  overlayHost.id = 'git8git-overlay'
-  document.body.appendChild(overlayHost)
-
-  overlayShadow = overlayHost.attachShadow({ mode: 'open' })
-
-  const style = document.createElement('style')
-  style.textContent = cssText
-  overlayShadow.appendChild(style)
-
-  overlayContainer = document.createElement('div')
-  overlayShadow.appendChild(overlayContainer)
-
+  if (!overlayContainer) throw new Error('Overlay root not initialized')
   return overlayContainer
 }
 
 /**
- * Tear down the overlay shadow root. Called on unmount.
+ * Clear the overlay root reference on unmount.
  */
 export function destroyOverlay(): void {
-  overlayHost?.remove()
-  overlayHost = null
-  overlayShadow = null
   overlayContainer = null
 }

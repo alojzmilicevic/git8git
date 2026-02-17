@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { GitHubSection } from './GitHubSection'
 import { N8nSection } from './N8nSection'
@@ -8,9 +8,10 @@ import { useClickOutside } from '../useClickOutside'
 
 interface Props {
   onClose?: () => void
+  buttonRef?: RefObject<HTMLElement | null>
 }
 
-export function SettingsPopup({ onClose }: Props) {
+export function SettingsPopup({ onClose, buttonRef }: Props) {
   const popupRef = useRef<HTMLDivElement>(null)
   const authInProgress = useRef(false)
   const githubConnected = useAppStore((s) => s.githubConnected)
@@ -24,9 +25,7 @@ export function SettingsPopup({ onClose }: Props) {
     if (!authInProgress.current) onClose?.()
   }, [onClose])
 
-  useClickOutside(popupRef, handleClickOutside, {
-    ignore: '[data-settings-button]',
-  })
+  useClickOutside(buttonRef ? [popupRef, buttonRef] : popupRef, handleClickOutside)
 
   function handleGitHubConnect() {
     authInProgress.current = true

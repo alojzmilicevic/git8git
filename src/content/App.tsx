@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from './store'
 import { WorkflowButtons } from './WorkflowButtons'
 import { SettingsButton } from './components/SettingsButton'
@@ -12,6 +12,7 @@ export function App() {
   const selectedBranch = useAppStore((s) => s.selectedBranch)
   const initializeStore = useAppStore((s) => s.initializeStore)
   const closeSettings = useCallback(() => setShowSettings(false), [])
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     initializeStore()
@@ -25,9 +26,9 @@ export function App() {
         <WorkflowButtons repo={selectedRepo} branch={selectedBranch} />
       )}
 
-      <SettingsButton onClick={() => setShowSettings((v) => !v)} />
+      <SettingsButton ref={settingsButtonRef} onClick={() => setShowSettings((v) => !v)} />
 
-      {showSettings && <SettingsPopup onClose={closeSettings} />}
+      {showSettings && <SettingsPopup onClose={closeSettings} buttonRef={settingsButtonRef} />}
     </div>
   )
 }
