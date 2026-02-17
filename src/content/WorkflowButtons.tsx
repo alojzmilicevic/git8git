@@ -31,7 +31,7 @@ export function WorkflowButtons({ repo, branch }: Props) {
   const isConfigured = useMemo(() => Boolean(repo && branch), [repo, branch])
   const repoName = useMemo(() => (repo ? repo.split('/')[1] : ''), [repo])
 
-  function showStatus(msg: string, duration = 3000) {
+  function showStatusMsg(msg: string, duration = 3000) {
     setStatus(msg)
     setTimeout(() => setStatus(''), duration)
   }
@@ -40,7 +40,7 @@ export function WorkflowButtons({ repo, branch }: Props) {
     if (!isConfigured) return
     const workflowId = getWorkflowIdFromUrl()
     if (!workflowId) {
-      showStatus('Not on a workflow page')
+      showStatusMsg('Not on a workflow page')
       return
     }
     setStatus('Loading...')
@@ -51,7 +51,7 @@ export function WorkflowButtons({ repo, branch }: Props) {
       setStatus('')
     } catch (error) {
       console.error('[git8git] Error loading workflow:', error)
-      showStatus(`Error: ${error instanceof Error ? error.message : 'Failed to load'}`)
+      showStatusMsg(`Error: ${error instanceof Error ? error.message : 'Failed to load'}`)
     }
   }
 
@@ -130,10 +130,10 @@ export function WorkflowButtons({ repo, branch }: Props) {
         )
       }
 
-      showStatus(workflowResult.changed ? 'Pushed!' : 'No changes to push', 2000)
+      showStatusMsg(workflowResult.changed ? 'Pushed!' : 'No changes to push', 2000)
     } catch (error) {
       console.error('[git8git] Push error:', error)
-      showStatus(`Error: ${error instanceof Error ? error.message : 'Push failed'}`, 5000)
+      showStatusMsg(`Error: ${error instanceof Error ? error.message : 'Push failed'}`, 5000)
     } finally {
       setPushing(false)
     }
@@ -143,7 +143,7 @@ export function WorkflowButtons({ repo, branch }: Props) {
     if (!isConfigured) return
     const workflowId = getWorkflowIdFromUrl()
     if (!workflowId) {
-      showStatus('Not on a workflow page')
+      showStatusMsg('Not on a workflow page')
       return
     }
 
@@ -155,7 +155,7 @@ export function WorkflowButtons({ repo, branch }: Props) {
       const filename = index[workflowId]
 
       if (!filename) {
-        showStatus('Workflow not in repo')
+        showStatusMsg('Workflow not in repo')
         setPulling(false)
         return
       }
@@ -179,15 +179,18 @@ export function WorkflowButtons({ repo, branch }: Props) {
       }, 1000)
     } catch (error) {
       console.error('[git8git] Pull error:', error)
-      showStatus(`Error: ${error instanceof Error ? error.message : 'Pull failed'}`, 5000)
+      showStatusMsg(`Error: ${error instanceof Error ? error.message : 'Pull failed'}`, 5000)
     } finally {
       setPulling(false)
     }
   }
 
+  const busy = pushing || pulling
+
   return (
     <>
       <div className="flex items-center gap-2">
+        {/* Repo/Branch indicator */}
         {isConfigured ? (
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-neutral-800/50 text-[11px] text-neutral-400">
             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
@@ -202,20 +205,20 @@ export function WorkflowButtons({ repo, branch }: Props) {
             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
               <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575L6.457 1.047zM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5zm1 6a1 1 0 1 0-2 0 1 1 0 0 0 2 0z" />
             </svg>
-            <span>Select repo & branch</span>
+            <span>Select repo &amp; branch</span>
           </div>
         )}
 
         <button
           type="button"
           title={isConfigured ? 'Push workflow to GitHub' : 'Select a repo and branch first'}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 border ${
             isConfigured
               ? 'cursor-pointer border-emerald-500/40 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 hover:border-emerald-500/60 active:scale-[0.98]'
               : 'cursor-not-allowed border-neutral-600/40 bg-neutral-600/15 text-neutral-500'
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
           onClick={handlePushClick}
-          disabled={!isConfigured || pushing || pulling}
+          disabled={!isConfigured || busy}
         >
           <span>{pushing ? '...' : '\u2B06'}</span>
           <span>{pushing ? 'Pushing' : 'Push'}</span>
@@ -224,13 +227,13 @@ export function WorkflowButtons({ repo, branch }: Props) {
         <button
           type="button"
           title={isConfigured ? 'Pull workflow from GitHub' : 'Select a repo and branch first'}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 border ${
             isConfigured
               ? 'cursor-pointer border-sky-400/40 bg-sky-400/15 text-sky-400 hover:bg-sky-400/25 hover:border-sky-400/60 active:scale-[0.98]'
               : 'cursor-not-allowed border-neutral-600/40 bg-neutral-600/15 text-neutral-500'
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
           onClick={handlePull}
-          disabled={!isConfigured || pushing || pulling}
+          disabled={!isConfigured || busy}
         >
           <span>{pulling ? '...' : '\u2B07'}</span>
           <span>{pulling ? 'Pulling' : 'Pull'}</span>

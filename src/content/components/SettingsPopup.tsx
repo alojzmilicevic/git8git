@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { GitHubSection } from './GitHubSection'
 import { N8nSection } from './N8nSection'
 import { useAppStore } from '../store'
+import { getOverlayRoot } from '../shadowPorts'
 
 interface Props {
   onClose?: () => void
@@ -44,10 +46,10 @@ export function SettingsPopup({ onClose }: Props) {
     })
   }
 
-  return (
+  return createPortal(
     <div
       ref={popupRef}
-      className="fixed top-[50px] right-5 w-70 p-4 rounded-xl border border-neutral-300 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.3)] z-[2147483647]"
+      className="fixed top-[50px] right-5 w-[280px] p-4 rounded-xl border border-neutral-300 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.3)] z-[2147483647]"
     >
       <div className="flex flex-col gap-4">
         <GitHubSection
@@ -56,6 +58,7 @@ export function SettingsPopup({ onClose }: Props) {
           onDisconnect={disconnectGitHub}
         />
 
+        {/* Divider */}
         <div className="h-px bg-neutral-200" />
 
         <N8nSection
@@ -65,6 +68,7 @@ export function SettingsPopup({ onClose }: Props) {
           onDisconnect={disconnectN8n}
         />
       </div>
-    </div>
+    </div>,
+    getOverlayRoot(),
   )
 }

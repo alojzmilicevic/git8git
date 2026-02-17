@@ -2,6 +2,8 @@ import { createRoot, type Root } from 'react-dom/client'
 import { createElement } from 'react'
 import { App } from './App'
 import { DEFAULT_N8N_URL } from '../shared/config'
+import { destroyOverlay } from './shadowPorts'
+import cssText from './styles.css?inline'
 
 const CONTAINER_ID = 'git8git-root'
 
@@ -50,15 +52,27 @@ function mountApp() {
   if (document.getElementById(CONTAINER_ID)) return true
 
   const actionsContainer = findActionsContainer()
-  if (!actionsContainer) {
-    return false
-  }
+  if (!actionsContainer) return false
 
-  const target = document.createElement('div')
-  target.id = CONTAINER_ID
-  actionsContainer.insertAdjacentElement('beforeend', target)
+  // 1. Create host element
+  const host = document.createElement('div')
+  host.id = CONTAINER_ID
+  actionsContainer.insertAdjacentElement('beforeend', host)
 
-  root = createRoot(target)
+  // 2. Attach shadow root
+  const shadow = host.attachShadow({ mode: 'open' })
+
+  // 3. Inject Tailwind CSS into shadow root
+  const style = document.createElement('style')
+  style.textContent = cssText
+  shadow.appendChild(style)
+
+  // 4. Create render target inside shadow root
+  const renderTarget = document.createElement('div')
+  shadow.appendChild(renderTarget)
+
+  // 5. Mount React
+  root = createRoot(renderTarget)
   root.render(createElement(App))
   return true
 }
@@ -70,6 +84,7 @@ function unmountApp() {
     root = null
     container.remove()
   }
+  destroyOverlay()
 }
 
 function waitForContainer() {
@@ -94,6 +109,13 @@ function initialize() {
 const urlObserver = new MutationObserver(() => {
   if (window.location.href !== lastUrl) {
     lastUrl = window.location.href
+    unmountApp()
+    setTimeout(initialize, 100)
+  }
+})
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'auth/complete') {
     unmountApp()
     setTimeout(initialize, 100)
   }

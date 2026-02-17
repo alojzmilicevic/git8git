@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import n8nLogo from '../../assets/n8n.svg'
-import { requestHostPermission } from '../../shared/permissions'
 import { DEFAULT_N8N_URL } from '../../shared/config'
 
 interface Props {
@@ -52,13 +51,6 @@ export function N8nSection({ connected = false, currentUrl = DEFAULT_N8N_URL, on
     setError('')
     setLoading(true)
 
-    const permissionGranted = await requestHostPermission(trimmedUrl)
-    if (!permissionGranted) {
-      setError('Permission denied for this URL. Please allow access when prompted.')
-      setLoading(false)
-      return
-    }
-
     const isValid = await validateApiKey(trimmedUrl, trimmedKey)
     setLoading(false)
 
@@ -103,7 +95,7 @@ export function N8nSection({ connected = false, currentUrl = DEFAULT_N8N_URL, on
             </div>
             <button
               type="button"
-              className="text-xs text-neutral-500 bg-transparent border-none cursor-pointer"
+              className="text-xs text-neutral-500 bg-transparent border-none cursor-pointer hover:text-neutral-700"
               onClick={onDisconnect}
             >
               Disconnect
@@ -122,18 +114,20 @@ export function N8nSection({ connected = false, currentUrl = DEFAULT_N8N_URL, on
             onChange={(e) => setBaseUrl(e.target.value)}
             onKeyDown={handleKeydown}
             placeholder={DEFAULT_N8N_URL}
-            className="w-full px-2.5 py-2 rounded-md border border-neutral-300 text-[13px] bg-white text-neutral-800 outline-none box-border"
+            className="w-full py-2 px-2.5 rounded-md border border-neutral-300 text-[13px] bg-white text-neutral-800 outline-none box-border focus:border-neutral-400"
           />
 
           <div className="text-xs text-neutral-600 mt-1">API Key</div>
-          <div className="text-[11px] text-neutral-500">Settings &rarr; n8n API &rarr; Create API key</div>
+          <div className="text-[11px] text-neutral-500">
+            Settings &rarr; n8n API &rarr; Create API key
+          </div>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             onKeyDown={handleKeydown}
             placeholder="n8n-api-key-..."
-            className="w-full px-2.5 py-2 rounded-md border border-neutral-300 text-[13px] bg-white text-neutral-800 outline-none box-border"
+            className="w-full py-2 px-2.5 rounded-md border border-neutral-300 text-[13px] bg-white text-neutral-800 outline-none box-border focus:border-neutral-400"
           />
 
           {error && <div className="text-xs text-red-500">{error}</div>}
@@ -143,8 +137,10 @@ export function N8nSection({ connected = false, currentUrl = DEFAULT_N8N_URL, on
               type="button"
               onClick={handleSave}
               disabled={loading}
-              className={`flex-1 px-3 py-2 rounded-md text-[13px] font-medium border-none text-white ${
-                loading ? 'cursor-not-allowed bg-neutral-400 opacity-70' : 'cursor-pointer bg-emerald-500'
+              className={`flex-1 py-2 px-3 rounded-md text-[13px] font-medium border-none text-white ${
+                loading
+                  ? 'bg-neutral-400 opacity-70 cursor-not-allowed'
+                  : 'bg-emerald-500 cursor-pointer hover:bg-emerald-600'
               }`}
             >
               {loading ? 'Validating...' : 'Save'}
@@ -153,8 +149,8 @@ export function N8nSection({ connected = false, currentUrl = DEFAULT_N8N_URL, on
               type="button"
               onClick={handleCancel}
               disabled={loading}
-              className={`px-3 py-2 rounded-md text-[13px] font-medium border border-neutral-300 bg-white text-neutral-600 ${
-                loading ? 'cursor-not-allowed' : 'cursor-pointer'
+              className={`py-2 px-3 rounded-md text-[13px] font-medium border border-neutral-300 bg-white text-neutral-600 ${
+                loading ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-neutral-50'
               }`}
             >
               Cancel
@@ -164,7 +160,7 @@ export function N8nSection({ connected = false, currentUrl = DEFAULT_N8N_URL, on
       ) : (
         <button
           type="button"
-          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150"
+          className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150 hover:bg-neutral-200"
           onClick={handleConnect}
         >
           <img src={n8nLogo} alt="" className="w-[18px] h-[18px]" />

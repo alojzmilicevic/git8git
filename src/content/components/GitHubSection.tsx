@@ -47,7 +47,7 @@ export function GitHubSection({ connected = false, onConnect, onDisconnect }: Pr
             </div>
             <button
               type="button"
-              className="text-xs text-neutral-500 bg-transparent border-none cursor-pointer"
+              className="text-xs text-neutral-500 bg-transparent border-none cursor-pointer hover:text-neutral-700"
               onClick={onDisconnect}
             >
               Disconnect
@@ -69,7 +69,7 @@ export function GitHubSection({ connected = false, onConnect, onDisconnect }: Pr
                   onClick={handleRefresh}
                   disabled={reposLoading}
                   title="Refresh repositories"
-                  className="bg-transparent border-none p-0.5 cursor-pointer text-neutral-500 flex items-center justify-center"
+                  className="bg-transparent border-none p-0.5 cursor-pointer text-neutral-500 flex items-center justify-center hover:text-neutral-700"
                 >
                   <svg
                     className={`w-3.5 h-3.5 ${reposLoading ? 'animate-spin' : ''}`}
@@ -126,7 +126,7 @@ export function GitHubSection({ connected = false, onConnect, onDisconnect }: Pr
       ) : (
         <button
           type="button"
-          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150"
+          className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150 hover:bg-neutral-200"
           onClick={(e) => {
             e.stopPropagation()
             onConnect?.()

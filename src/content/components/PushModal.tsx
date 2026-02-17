@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { getOverlayRoot } from '../shadowPorts'
 
 interface Props {
   workflowName: string
@@ -31,7 +33,7 @@ export function PushModal({ workflowName, repo, branch, onConfirm, onCancel }: P
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2147483647]"
       onClick={handleBackdropClick}
@@ -69,7 +71,7 @@ export function PushModal({ workflowName, repo, branch, onConfirm, onCancel }: P
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
               rows={3}
-              className="w-full p-2.5 rounded-lg border border-neutral-300 text-sm font-[inherit] resize-y bg-white text-neutral-800 box-border"
+              className="w-full p-2.5 rounded-lg border border-neutral-300 text-sm font-[inherit] resize-y bg-white text-neutral-800 box-border outline-none focus:border-neutral-400"
             />
             <span className="text-[11px] text-neutral-400">{'\u2318'}+Enter to push</span>
           </div>
@@ -79,7 +81,7 @@ export function PushModal({ workflowName, repo, branch, onConfirm, onCancel }: P
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer border border-neutral-300 bg-white text-neutral-600"
+            className="py-2 px-4 rounded-lg text-sm font-medium cursor-pointer border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50"
           >
             Cancel
           </button>
@@ -87,14 +89,15 @@ export function PushModal({ workflowName, repo, branch, onConfirm, onCancel }: P
             type="button"
             onClick={handleSubmit}
             disabled={!commitMessage.trim()}
-            className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer border-none bg-emerald-500 text-white ${
-              commitMessage.trim() ? 'opacity-100' : 'opacity-50'
+            className={`py-2 px-4 rounded-lg text-sm font-medium cursor-pointer border-none bg-emerald-500 text-white ${
+              commitMessage.trim() ? 'opacity-100 hover:bg-emerald-600' : 'opacity-50'
             }`}
           >
             Push
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    getOverlayRoot(),
   )
 }
