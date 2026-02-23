@@ -35,7 +35,7 @@ export const api = {
   get: <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'GET' }),
   post: <T>(endpoint: string, body?: unknown) => apiRequest<T>(endpoint, { method: 'POST', body }),
   put: <T>(endpoint: string, body?: unknown) => apiRequest<T>(endpoint, { method: 'PUT', body }),
-  delete: <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'DELETE' }),
+  delete: <T>(endpoint: string, body?: unknown) => apiRequest<T>(endpoint, { method: 'DELETE', body }),
 }
 
 export interface Repo {
@@ -51,11 +51,27 @@ export interface Branch {
   name: string
 }
 
+export interface PushWorkflowResult {
+  commitSha: string | null
+  changed: boolean
+}
+
+export interface PullWorkflowResult {
+  content: string
+  found: boolean
+}
+
+export interface DeleteWorkflowResult {
+  commitSha: string
+}
+
 export const githubApi = {
   listRepos: () => api.get<Repo[]>('/api/github/repos'),
   listBranches: (repoFullName: string) => api.get<Branch[]>(`/api/github/repos/${repoFullName}/branches`),
-  getFileContent: (repoFullName: string, path: string, ref?: string) =>
-    api.get<{ content: string; sha: string }>(`/api/github/repos/${repoFullName}/contents/${path}${ref ? `?ref=${ref}` : ''}`),
-  saveFile: (repoFullName: string, path: string, content: string, message: string, branch?: string, sha?: string) =>
-    api.put<{ changed: boolean; sha: string; path: string }>(`/api/github/repos/${repoFullName}/contents/${path}`, { content, message, branch, sha }),
+  pushWorkflow: (repo: string, body: { branch: string; message: string; workflowId: string; workflowName: string; workflowJson: string }) =>
+    api.post<PushWorkflowResult>(`/api/github/repos/${repo}/workflows/push`, body),
+  pullWorkflow: (repo: string, workflowId: string, branch: string) =>
+    api.get<PullWorkflowResult>(`/api/github/repos/${repo}/workflows/${encodeURIComponent(workflowId)}?branch=${encodeURIComponent(branch)}`),
+  deleteWorkflow: (repo: string, workflowId: string, params: { branch: string; workflowName: string }) =>
+    api.delete<DeleteWorkflowResult>(`/api/github/repos/${repo}/workflows/${encodeURIComponent(workflowId)}?branch=${encodeURIComponent(params.branch)}&workflowName=${encodeURIComponent(params.workflowName)}`),
 }

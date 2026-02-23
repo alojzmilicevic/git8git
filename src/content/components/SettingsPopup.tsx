@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { GitHubSection } from './GitHubSection'
 import { N8nSection } from './N8nSection'
@@ -9,13 +9,15 @@ import { useClickOutside } from '../useClickOutside'
 interface Props {
   onClose?: () => void
   anchor?: 'top' | 'bottom'
-  portal?: boolean
   children?: ReactNode
+  portal?: boolean
 }
 
-export function SettingsPopup({ onClose, anchor = 'top', portal = true, children }: Props) {
+export function SettingsPopup({ onClose, anchor, children, portal = true }: Props) {
   const popupRef = useRef<HTMLDivElement>(null)
   const authInProgress = useRef(false)
+  const [connecting, setConnecting] = useState(false)
+  const [connectError, setConnectError] = useState<string | null>(null)
   const githubConnected = useAppStore((s) => s.githubConnected)
   const n8nConnected = useAppStore((s) => s.n8nConnected)
   const n8nBaseUrl = useAppStore((s) => s.n8nBaseUrl)
@@ -27,14 +29,21 @@ export function SettingsPopup({ onClose, anchor = 'top', portal = true, children
     if (!authInProgress.current) onClose?.()
   }, [onClose])
 
-  useClickOutside(popupRef, handleClickOutside, {
-    ignore: '[data-settings-button],[data-fab-button]',
-  })
+  useClickOutside(popupRef, handleClickOutside)
 
   function handleGitHubConnect() {
+    setConnecting(true)
+    setConnectError(null)
     authInProgress.current = true
-    chrome.runtime.sendMessage({ type: 'auth/connect' }, () => {
+    chrome.runtime.sendMessage({ type: 'auth/connect' }, (response) => {
       authInProgress.current = false
+      setConnecting(false)
+      const err = chrome.runtime.lastError?.message
+      if (err) {
+        setConnectError(err)
+      } else if (response && !response.ok) {
+        setConnectError(response.error ?? 'Authentication failed')
+      }
     })
   }
 
@@ -53,6 +62,8 @@ export function SettingsPopup({ onClose, anchor = 'top', portal = true, children
 
         <GitHubSection
           connected={githubConnected}
+          connecting={connecting}
+          connectError={connectError}
           onConnect={handleGitHubConnect}
           onDisconnect={disconnectGitHub}
         />

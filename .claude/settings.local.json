@@ -17,7 +17,12 @@
       "Bash(grep:*)",
       "Bash(cd:*)",
       "Bash(yarn build)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(find:*)",
+      "Bash(git config:*)",
+      "Bash(where:*)",
+      "Bash(git --version:*)",
+      "Bash(git add:*)"
     ]
   }
 }

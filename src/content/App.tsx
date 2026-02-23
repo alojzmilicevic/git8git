@@ -9,7 +9,6 @@ interface Props {
 
 export function App({ fab }: Props) {
   const initializeStore = useAppStore((s) => s.initializeStore)
-
   useEffect(() => {
     initializeStore()
   }, [initializeStore])

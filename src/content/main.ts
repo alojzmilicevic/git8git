@@ -2,7 +2,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { createElement } from 'react'
 import { App } from './App'
 import { DEFAULT_N8N_URL } from '../shared/config'
-import { destroyOverlay } from './shadowPorts'
+import { initOverlayRoot, destroyOverlay } from './shadowPorts'
 import cssText from './styles.css?inline'
 
 const CONTAINER_ID = 'git8git-root'
@@ -65,6 +65,11 @@ function attachShadowWithStyles(host: HTMLDivElement): HTMLDivElement {
 
   const renderTarget = document.createElement('div')
   shadow.appendChild(renderTarget)
+
+  const overlayTarget = document.createElement('div')
+  shadow.appendChild(overlayTarget)
+  initOverlayRoot(overlayTarget)
+
   return renderTarget
 }
 

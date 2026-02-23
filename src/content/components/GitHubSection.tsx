@@ -3,11 +3,13 @@ import { useAppStore } from '../store'
 
 interface Props {
   connected?: boolean
+  connecting?: boolean
+  connectError?: string | null
   onConnect?: () => void
   onDisconnect?: () => void
 }
 
-export function GitHubSection({ connected = false, onConnect, onDisconnect }: Props) {
+export function GitHubSection({ connected = false, connecting = false, connectError, onConnect, onDisconnect }: Props) {
   const repos = useAppStore((s) => s.repos)
   const branches = useAppStore((s) => s.branches)
   const selectedRepo = useAppStore((s) => s.selectedRepo)
@@ -124,17 +126,22 @@ export function GitHubSection({ connected = false, onConnect, onDisconnect }: Pr
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150 hover:bg-neutral-200"
-          onClick={(e) => {
-            console.log('clicked', onConnect)
-            onConnect?.()
-          }}
-        >
-          <img src={gitLogo} alt="" className="w-[18px] h-[18px]" />
-          <span>Connect to GitHub</span>
-        </button>
+        <>
+          <button
+            type="button"
+            disabled={connecting}
+            className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg text-[13px] font-medium cursor-pointer border border-neutral-300 bg-neutral-100 text-neutral-800 transition-all duration-150 hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onConnect}
+          >
+            <img src={gitLogo} alt="" className="w-[18px] h-[18px]" />
+            <span>{connecting ? 'Connecting...' : 'Connect to GitHub'}</span>
+          </button>
+          {connectError && (
+            <div className="text-xs text-red-500 p-2 bg-red-50 rounded-md break-words">
+              {connectError}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
